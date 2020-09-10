@@ -1,22 +1,12 @@
-
-/**
- * Module dependencies.
- */
-
 var express = require('express');
-const router = require('./router/index')
-var http = require('http');
+var app = express();
+var http = require('http').Server(app);
 var path = require('path');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var io = require('socket.io')(http);
 
-var app = express();
-
-// all environments
-app.set('port', process.env.PORT || 3000);
-app.set('views', __dirname + '/views');
-app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -24,14 +14,32 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json());
 
-//  使用路由 /index 是路由指向名称
-app.use(`/`,router)
+var users = {};//存储在线用户列表的对象
 
+app.get('/', function (req, res) {
+  if (req.cookies.user == null) {
+    res.redirect('/signin');
+  } else {
+    res.sendFile(__dirname + '/views/index.html');
+  }
+});
 
-var server = http.createServer(app);
-var io = require('socket.io').listen(server);
-io.sockets.on('connection', function (socket) {
+app.get('/signin', function (req, res) {
+  res.sendFile(__dirname + '/views/signin.html');
+});
 
+app.post('/signin', function (req, res) {
+  if (users[req.body.name]) {
+    //存在，则不允许登陆
+    res.redirect('/signin');
+  } else {
+    //不存在，把用户名存入 cookie 并跳转到主页
+    res.cookie("user", req.body.name, {maxAge: 1000*60*60*24*30});
+    res.redirect('/');
+  }
+});
+
+io.on('connection', function (socket) {
   //有人上线
   socket.on('online', function (data) {
     //将上线的用户名存储为 socket 对象的属性，以区分每个 socket 对象，方便后面使用
@@ -75,6 +83,6 @@ io.sockets.on('connection', function (socket) {
   });
 });
 
-server.listen(app.get('port'), function(){
-  console.log('Express server listening on port ' + app.get('port'));
+http.listen(3000, function(){
+  console.log('Express server listening on port 3000');
 });

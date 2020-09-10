@@ -1,7 +1,6 @@
 const express = require(`express`)
 const router = express.Router()
 
-var users = {};//存储在线用户列表的对象
 
 router.get('/', function (req, res) {
   if (req.cookies.user == null) {
